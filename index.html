@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rekapitulasi Juara - 2 CAHAYA DIGITAL SCORING</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <!-- Library untuk Export PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b; 
+        }
+        
+        /* Mobile friendly table wrap */
+        .table-container { 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; 
+        }
+        
+        .tab-btn { 
+            flex: 1; 
+            padding: 15px 10px; 
+            font-size: 11px; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            border-bottom: 4px solid transparent; 
+            color: #94a3b8; 
+            transition: all 0.3s; 
+            text-align: center; 
+            cursor: pointer; 
+        }
+        .tab-btn:active { transform: scale(0.98); }
+        .tab-btn.active { 
+            border-bottom-color: #f59e0b; 
+            color: #d97706; 
+            background: #fffbeb; 
+        }
+
+        /* Report Styles for PDF (Hidden from View) */
+        .report-page { 
+            background: white; 
+            padding: 15mm; 
+            width: 210mm; /* A4 width */
+            color: #000; 
+            font-family: 'Times New Roman', serif; 
+        }
+        .report-header { 
+            text-align: center; 
+            margin-bottom: 20px; 
+            border-bottom: 3px double #000; 
+            padding-bottom: 10px; 
+        }
+        .report-title { 
+            font-size: 18px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            margin-bottom: 2px; 
+        }
+        .report-subtitle { 
+            font-size: 12px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+        }
+        .report-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+            font-size: 10px; 
+        }
+        .report-table th, .report-table td { 
+            border: 1px solid #000; 
+            padding: 6px 8px; 
+            text-align: center; 
+        }
+        .report-table th { 
+            background-color: #f1f5f9; 
+            font-weight: bold; 
+        }
+        .section-title { 
+            font-size: 12px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            margin-bottom: 10px; 
+            margin-top: 20px; 
+            text-align: left;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col relative overflow-x-hidden">
+
+    <!-- HEADER LAYAR APLIKASI -->
+    <div class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <button onclick="window.history.back()" class="text-slate-400 hover:text-white p-2">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div>
+                <h1 class="text-sm sm:text-lg font-black uppercase italic text-amber-500 tracking-wider">Rekapitulasi Juara</h1>
+                <p class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">2 Cahaya Digital Scoring</p>
+            </div>
+        </div>
+        <button onclick="exportToPDF()" class="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-[10px] sm:text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all flex items-center gap-2">
+            <i class="fas fa-file-pdf"></i> <span class="hidden sm:inline">CETAK PDF</span>
+        </button>
+    </div>
+
+    <!-- TABS NAVIGASI -->
+    <div class="flex bg-white shadow-sm border-b sticky top-[72px] sm:top-[76px] z-40">
+        <button id="tab-peserta" onclick="switchTab('peserta')" class="tab-btn active">
+            <i class="fas fa-medal mr-2 text-lg block sm:inline mb-1 sm:mb-0"></i> 
+            <span class="block sm:inline tracking-wider">Juara Peserta</span>
+        </button>
+        <button id="tab-kontingen" onclick="switchTab('kontingen')" class="tab-btn">
+            <i class="fas fa-trophy mr-2 text-lg block sm:inline mb-1 sm:mb-0"></i> 
+            <span class="block sm:inline tracking-wider">Juara Umum</span>
+        </button>
+    </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="flex-1 p-3 sm:p-6 w-full max-w-6xl mx-auto pb-20">
+        
+        <!-- BAGIAN 1: REKAPITULASI PESERTA -->
+        <div id="view-peserta" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden transition-all duration-300">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap gap-2 justify-between items-center bg-slate-50/50">
+                <h2 class="text-xs sm:text-sm font-black uppercase text-slate-800 tracking-wide">
+                    <i class="fas fa-list-ol mr-2 text-amber-500"></i> Daftar Perolehan Medali
+                </h2>
+                <div class="text-[10px] font-black bg-amber-100 text-amber-800 px-4 py-1.5 rounded-full shadow-sm tracking-widest" id="count-peserta">TOTAL: 0</div>
+            </div>
+            <div class="table-container p-0 sm:p-4">
+                <table class="w-full text-left border-collapse text-[10px] sm:text-xs">
+                    <thead>
+                        <tr class="bg-slate-800 text-white uppercase tracking-wider">
+                            <th class="p-3 border-b border-slate-700 text-center w-12 rounded-tl-lg">No</th>
+                            <th class="p-3 border-b border-slate-700">Nama & Kontingen</th>
+                            <th class="p-3 border-b border-slate-700">Kategori / Kelas</th>
+                            <th class="p-3 border-b border-slate-700 text-center rounded-tr-lg">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-peserta" class="font-semibold text-slate-700">
+                        <tr><td colspan="4" class="p-10 text-center text-slate-400 italic text-xs font-bold uppercase"><i class="fas fa-spinner fa-spin mr-2"></i> Mengambil data Realtime...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- BAGIAN 2: REKAPITULASI KONTINGEN -->
+        <div id="view-kontingen" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hidden transition-all duration-300">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap gap-2 justify-between items-center bg-slate-50/50">
+                <h2 class="text-xs sm:text-sm font-black uppercase text-slate-800 tracking-wide">
+                    <i class="fas fa-shield-alt mr-2 text-amber-500"></i> Klasemen Kontingen
+                </h2>
+                <div class="text-[10px] font-black bg-amber-100 text-amber-800 px-4 py-1.5 rounded-full shadow-sm tracking-widest" id="count-kontingen">TOTAL: 0</div>
+            </div>
+            <div class="table-container p-0 sm:p-4">
+                <table class="w-full text-center border-collapse text-[10px] sm:text-xs">
+                    <thead>
+                        <tr class="bg-slate-800 text-white uppercase tracking-wider">
+                            <th class="p-3 border-b border-slate-700 w-16 rounded-tl-lg">Rank</th>
+                            <th class="p-3 border-b border-slate-700 text-left">Nama Kontingen</th>
+                            <th class="p-3 border-b border-slate-700 w-16" title="Jumlah Peserta"><i class="fas fa-users text-sm"></i></th>
+                            <th class="p-3 border-b border-slate-700 bg-yellow-600/90 w-16">Emas</th>
+                            <th class="p-3 border-b border-slate-700 bg-gray-500/90 w-16">Perak</th>
+                            <th class="p-3 border-b border-slate-700 bg-orange-700/90 w-16 rounded-tr-lg">Prg</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-kontingen" class="font-bold text-slate-700">
+                        <tr><td colspan="6" class="p-10 text-center text-slate-400 italic text-xs font-bold uppercase"><i class="fas fa-spinner fa-spin mr-2"></i> Mengambil data Realtime...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- CONTAINER TERSEMBUNYI UNTUK EXPORT PDF (FORMAT A4) -->
+    <div id="export-container" style="position: absolute; left: -9999px; top: 0;">
+        <div id="pdf-content" class="report-page">
+            
+            <!-- HALAMAN 1: KLASEMEN KONTINGEN -->
+            <div class="report-header">
+                <p class="report-title">REKAPITULASI HASIL KEJUARAAN</p>
+                <p class="report-subtitle">PENCAK SILAT DIGITAL SCORING 2026</p>
+                <p style="font-size: 10px; margin-top: 5px; font-style: italic;" id="pdf-timestamp"></p>
+            </div>
+
+            <div class="section-title">I. KLASEMEN JUARA UMUM (KONTINGEN)</div>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">RANK</th>
+                        <th style="text-align: left;">NAMA KONTINGEN / PERGURUAN</th>
+                        <th style="width: 15%;">PESERTA</th>
+                        <th style="width: 10%;">EMAS</th>
+                        <th style="width: 10%;">PERAK</th>
+                        <th style="width: 15%;">PERUNGGU</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-tbody-kontingen"></tbody>
+            </table>
+
+            <div style="page-break-before: always;"></div>
+
+            <!-- HALAMAN 2: DAFTAR MEDALI PESERTA -->
+            <div class="report-header">
+                <p class="report-title">REKAPITULASI HASIL KEJUARAAN</p>
+                <p class="report-subtitle">PENCAK SILAT DIGITAL SCORING 2026</p>
+            </div>
+            
+            <div class="section-title">II. DAFTAR PEROLEHAN MEDALI PESERTA</div>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">NO</th>
+                        <th style="text-align: left;">NAMA PESERTA / KONTINGEN</th>
+                        <th style="width: 35%;">KATEGORI / KELAS</th>
+                        <th style="width: 25%;">KETERANGAN MEDALI</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-tbody-peserta"></tbody>
+            </table>
+            
+            <div style="margin-top: 50px; display: flex; justify-content: flex-end; font-size: 10px; font-weight: bold; text-align: center;">
+                <div style="width: 200px; border-top: 1px solid black; padding-top: 5px;">
+                    KETUA PERTANDINGAN
+                    <div style="height: 60px;"></div>
+                    (....................................)
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT LOGIC & FIREBASE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // Konfigurasi Database Firebase (Harus Sama dengan Menu Utama)
+        const firebaseConfig = {
+  apiKey: "AIzaSyAVwQw-zBMEVbRaQc2lcWfdss3l2zOhoNs",
+  authDomain: "pscp-ternate.firebaseapp.com",
+  databaseURL: "https://pscp-ternate-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "pscp-ternate",
+  storageBucket: "pscp-ternate.firebasestorage.app",
+  messagingSenderId: "1057698178770",
+  appId: "1:1057698178770:web:d4ed0a01f84d26603c2f0b"
+};
+        
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const dbRef = ref(database, 'pencak_scoring_state');
+
+        let juaraPeserta = [];
+        let listKontingen = [];
+
+        // Tab Switch Logic
+        window.switchTab = function(tab) {
+            document.getElementById('view-peserta').classList.toggle('hidden', tab !== 'peserta');
+            document.getElementById('view-kontingen').classList.toggle('hidden', tab !== 'kontingen');
+            document.getElementById('tab-peserta').classList.toggle('active', tab === 'peserta');
+            document.getElementById('tab-kontingen').classList.toggle('active', tab === 'kontingen');
+        }
+
+        // Listener Real-time Database
+        onValue(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                processRekapitulasi(data.matches || [], data.participants || []);
+            }
+        });
+
+        function processRekapitulasi(matches, participants) {
+            juaraPeserta = [];
+            let kontingenStats = {};
+            
+            // 1. Hitung total pendaftar awal (Peserta) per kontingen
+            participants.forEach(p => {
+                let k = (p.kont || '').toUpperCase().trim();
+                if(k) {
+                    if(!kontingenStats[k]) {
+                        kontingenStats[k] = { nama: k, totalPeserta: 0, emas: 0, perak: 0, perunggu: 0 };
+                    }
+                    kontingenStats[k].totalPeserta++;
+                }
+            });
+
+            // Helper untuk memastikan kontingen terdaftar meski di-input manual di bagan
+            const ensureKont = (k) => {
+                let name = (k || '').toUpperCase().trim();
+                if(name && name !== '-' && name !== '---' && name !== 'BYE') {
+                    if(!kontingenStats[name]) {
+                        kontingenStats[name] = { nama: name, totalPeserta: 1, emas: 0, perak: 0, perunggu: 0 };
+                    }
+                    return name;
+                }
+                return '';
+            };
+
+            // 2. Kalkulasi Perolehan Medali Berdasarkan Log Pertandingan (Bracket/Matches)
+            matches.forEach(m => {
+                if(m.status !== 'selesai') return; // Hanya baca pertandingan yang sudah selesai
+                
+                let fase = (m.fase || '').toUpperCase().trim();
+                if(fase !== 'FINAL' && fase !== 'SEMI FINAL') return; // Hanya Final dan Semi Final penentu medali
+
+                let wName = (m.winner || '').toUpperCase();
+                let wKontRaw = m.winnerSide === 'biru' ? m.kb : m.winnerSide === 'merah' ? m.km : '';
+                let wKont = ensureKont(wKontRaw);
+                
+                let lName = m.winnerSide === 'biru' ? (m.m || '').toUpperCase() : m.winnerSide === 'merah' ? (m.b || '').toUpperCase() : '';
+                let lKontRaw = m.winnerSide === 'biru' ? m.km : m.winnerSide === 'merah' ? m.kb : '';
+                let lKont = ensureKont(lKontRaw);
+                
+                let kat = `${m.kelas || ''} ${m.cat || ''} ${m.gender || ''}`.toUpperCase().trim();
+
+                if (fase === 'FINAL') {
+                    // Pemenang Final = Juara 1 (Emas)
+                    if(wName && wName !== 'BYE' && wName !== 'KEPUTUSAN DEWAN') {
+                        juaraPeserta.push({ nama: wName, kont: wKont, kategori: kat, juara: 1, keterangan: 'Juara 1 (Emas)' });
+                        if(wKont) kontingenStats[wKont].emas++;
+                    }
+                    // Kalah di Final = Juara 2 (Perak)
+                    if(lName && lName !== 'BYE' && lName !== 'KEPUTUSAN DEWAN') {
+                        juaraPeserta.push({ nama: lName, kont: lKont, kategori: kat, juara: 2, keterangan: 'Juara 2 (Perak)' });
+                        if(lKont) kontingenStats[lKont].perak++;
+                    }
+                } else if (fase === 'SEMI FINAL') {
+                    // Kalah di Semifinal = Juara 3 (Perunggu)
+                    // Catatan: Ada 2 Semifinal, berarti otomatis ada 2 Juara Tiga (Juara 3 Bersama)
+                    if(lName && lName !== 'BYE' && lName !== 'KEPUTUSAN DEWAN') {
+                        juaraPeserta.push({ nama: lName, kont: lKont, kategori: kat, juara: 3, keterangan: 'Juara 3 Bersama (Perunggu)' });
+                        if(lKont) kontingenStats[lKont].perunggu++;
+                    }
+                }
+            });
+
+            // Sortir Peserta: Berdasarkan Kategori, lalu Juara (1,2,3)
+            juaraPeserta.sort((a, b) => {
+                let cKat = a.kategori.localeCompare(b.kategori);
+                if(cKat !== 0) return cKat;
+                return a.juara - b.juara;
+            });
+
+            // Sortir Kontingen: Emas DESC -> Perak DESC -> Perunggu DESC -> Total Peserta DESC
+            listKontingen = Object.values(kontingenStats)
+                .filter(k => k.emas > 0 || k.perak > 0 || k.perunggu > 0 || k.totalPeserta > 0)
+                .sort((a, b) => {
+                    if(b.emas !== a.emas) return b.emas - a.emas;
+                    if(b.perak !== a.perak) return b.perak - a.perak;
+                    if(b.perunggu !== a.perunggu) return b.perunggu - a.perunggu;
+                    return b.totalPeserta - a.totalPeserta;
+                });
+
+            renderTables();
+        }
+
+        function renderTables() {
+            let tbodyPeserta = document.getElementById('tbody-peserta');
+            let tbodyKontingen = document.getElementById('tbody-kontingen');
+            let pdfTbodyPeserta = document.getElementById('pdf-tbody-peserta');
+            let pdfTbodyKontingen = document.getElementById('pdf-tbody-kontingen');
+            
+            // ============== RENDER TABEL PESERTA ==============
+            let htmlPeserta = '';
+            let pdfHtmlPeserta = '';
+            if(juaraPeserta.length === 0) {
+                htmlPeserta = `<tr><td colspan="4" class="p-8 text-center text-slate-400 italic text-[10px] font-bold uppercase">Belum ada hasil partai final / semifinal yang diselesaikan.</td></tr>`;
+                pdfHtmlPeserta = `<tr><td colspan="4">Belum ada data.</td></tr>`;
+            } else {
+                juaraPeserta.forEach((p, idx) => {
+                    let color = p.juara === 1 ? 'text-yellow-700 bg-yellow-100 border border-yellow-200' : p.juara === 2 ? 'text-slate-700 bg-slate-200 border border-slate-300' : 'text-orange-800 bg-orange-100 border border-orange-200';
+                    let icon = p.juara === 1 ? '🥇' : p.juara === 2 ? '🥈' : '🥉';
+                    
+                    htmlPeserta += `
+                    <tr class="border-b border-slate-100 hover:bg-amber-50/30 transition-all">
+                        <td class="p-3 border-r border-slate-50 text-center font-black">${idx + 1}</td>
+                        <td class="p-3 border-r border-slate-50">
+                            <div class="font-black text-[11px] sm:text-[12px] text-slate-800 uppercase">${p.nama}</div>
+                            <div class="text-[8px] sm:text-[9px] text-slate-500 uppercase font-bold tracking-tight">${p.kont}</div>
+                        </td>
+                        <td class="p-3 border-r border-slate-50 uppercase text-center font-black text-indigo-700 text-[9px] sm:text-[10px]">${p.kategori}</td>
+                        <td class="p-3 text-center">
+                            <span class="${color} px-3 py-1.5 rounded-lg font-black text-[9px] sm:text-[10px] uppercase whitespace-nowrap shadow-sm">
+                                ${icon} ${p.keterangan}
+                            </span>
+                        </td>
+                    </tr>`;
+                    
+                    pdfHtmlPeserta += `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td style="text-align: left;"><b>${p.nama}</b><br><span style="font-size: 8px; color: #555;">${p.kont}</span></td>
+                        <td>${p.kategori}</td>
+                        <td style="font-weight: bold;">${p.keterangan}</td>
+                    </tr>`;
+                });
+            }
+            tbodyPeserta.innerHTML = htmlPeserta;
+            pdfTbodyPeserta.innerHTML = pdfHtmlPeserta;
+            document.getElementById('count-peserta').innerText = `TOTAL: ${juaraPeserta.length}`;
+            
+            // ============== RENDER TABEL KONTINGEN ==============
+            let htmlKontingen = '';
+            let pdfHtmlKontingen = '';
+            if(listKontingen.length === 0) {
+                htmlKontingen = `<tr><td colspan="6" class="p-8 text-center text-slate-400 italic text-[10px] font-bold uppercase">Data kontingen belum tersedia.</td></tr>`;
+                pdfHtmlKontingen = `<tr><td colspan="6">Belum ada data.</td></tr>`;
+            } else {
+                listKontingen.forEach((k, idx) => {
+                    let rankClass = idx === 0 ? 'bg-yellow-400 text-yellow-900 border-yellow-500' : idx === 1 ? 'bg-slate-300 text-slate-800 border-slate-400' : idx === 2 ? 'bg-orange-300 text-orange-900 border-orange-400' : 'bg-slate-100 text-slate-600 border-slate-200';
+                    
+                    htmlKontingen += `
+                    <tr class="border-b border-slate-100 hover:bg-amber-50/30 transition-all">
+                        <td class="p-3 border-r border-slate-50 text-center">
+                            <span class="${rankClass} border w-7 h-7 sm:w-8 sm:h-8 inline-flex items-center justify-center rounded-xl font-black text-[10px] sm:text-xs shadow-sm">${idx + 1}</span>
+                        </td>
+                        <td class="p-3 border-r border-slate-50 text-left font-black text-[10px] sm:text-xs text-slate-800 uppercase tracking-tight">${k.nama}</td>
+                        <td class="p-3 border-r border-slate-50 text-center text-slate-500 font-bold">${k.totalPeserta}</td>
+                        <td class="p-3 border-r border-slate-50 text-center font-black text-yellow-700 bg-yellow-50/80">${k.emas}</td>
+                        <td class="p-3 border-r border-slate-50 text-center font-black text-slate-700 bg-slate-100/80">${k.perak}</td>
+                        <td class="p-3 text-center font-black text-orange-800 bg-orange-50/80">${k.perunggu}</td>
+                    </tr>`;
+                    
+                    pdfHtmlKontingen += `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td style="text-align: left; font-weight: bold;">${k.nama}</td>
+                        <td>${k.totalPeserta}</td>
+                        <td style="font-weight: bold; background-color: #fef08a;">${k.emas}</td>
+                        <td style="font-weight: bold; background-color: #e2e8f0;">${k.perak}</td>
+                        <td style="font-weight: bold; background-color: #fed7aa;">${k.perunggu}</td>
+                    </tr>`;
+                });
+            }
+            tbodyKontingen.innerHTML = htmlKontingen;
+            pdfTbodyKontingen.innerHTML = pdfHtmlKontingen;
+            document.getElementById('count-kontingen').innerText = `TOTAL KONTINGEN: ${listKontingen.length}`;
+        }
+
+        // FUNGSI EKSPOR PDF
+        window.exportToPDF = function() {
+            const element = document.getElementById('pdf-content');
+            document.getElementById('pdf-timestamp').innerText = "WAKTU CETAK: " + new Date().toLocaleString('id-ID');
+            
+            const opt = { 
+                margin: 10, 
+                filename: 'Laporan_Rekapitulasi_Juara.pdf', 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            
+            // Konversi HTML div yang tersembunyi menjadi PDF secara dinamis
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+</body>
+</html>
